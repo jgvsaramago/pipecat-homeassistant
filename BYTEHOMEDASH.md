@@ -5,7 +5,9 @@ carries the changes [ByteHomeDash](https://github.com/jgvsaramago/bytehomedash) 
 Each change is its own commit on `main`, on top of upstream. Install the add-on from
 this repository (`https://github.com/jgvsaramago/pipecat-homeassistant`); its images
 are published by `.github/workflows/publish.yml` to
-`ghcr.io/jgvsaramago/pipecat-homeassistant` when a `v*` tag is pushed.
+`ghcr.io/jgvsaramago/pipecat-homeassistant` when a `v*` tag is pushed. The add-on
+uses the per-architecture images (`{arch}-pipecat-assist`): the workflow's
+multi-arch manifest step fails on this fork, and Supervisor doesn't need it.
 
 | Version | Change | Why |
 | --- | --- | --- |
