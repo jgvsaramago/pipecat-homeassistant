@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 (ByteHomeDash fork)
+
+- Gemini Live: when a long-lived session can't be resumed ("session not found
+  or expired"), start a fresh session instead of going silent while the
+  client stays connected. See BYTEHOMEDASH.md.
+
 ## 0.2.3 (ByteHomeDash fork)
 
 - Optional Gemini Live native Google Search (`google_search` on a flow, off

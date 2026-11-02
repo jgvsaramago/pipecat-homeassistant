@@ -4680,6 +4680,42 @@ def _gemini_live_service(
                 self._consecutive_failures = 0
             return await super()._handle_connection_error(error)
 
+        async def _connection_task_handler(self, config):
+            # A long-lived session (a satellite that stays connected for
+            # hours) eventually gets a resumption handle Gemini no longer
+            # knows ("BidiGenerateContent session not found or expired").
+            # Pipecat raises that out of the connection task and the service
+            # goes silent while the client stays connected, so start a fresh
+            # session (history is re-seeded from the context) instead.
+            try:
+                await super()._connection_task_handler(config)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                if self._disconnecting:
+                    raise
+                attempt = getattr(self, "_fresh_attempts", 0) + 1
+                if attempt > 3:
+                    await self.push_error(
+                        error_msg=f"Gemini Live session could not be restarted: {error}",
+                        exception=error,
+                    )
+                    raise
+                self._fresh_attempts = attempt
+                logger.warning(
+                    "Gemini session lost ({}); starting a fresh session ({}/3)",
+                    error,
+                    attempt,
+                )
+                self._session_resumption_handle = None
+                self._consecutive_failures = 0
+                await asyncio.sleep(2.0 * attempt)
+                await self._reconnect()
+
+        async def _handle_session_ready(self, session):
+            self._fresh_attempts = 0
+            await super()._handle_session_ready(session)
+
     settings_kwargs: dict[str, Any] = {
         "model": _gemini_model(model),
         "system_instruction": _effective_instructions(flow),
