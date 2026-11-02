@@ -28,7 +28,7 @@ from loguru import logger
 from starlette.staticfiles import StaticFiles
 
 from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
-from pipecat.adapters.llm.schemas.tools_schema import ToolsSchema
+from pipecat.adapters.llm.schemas.tools_schema import AdapterType, ToolsSchema
 from pipecat.frames.frames import ErrorFrame, LLMRunFrame, URLImageRawFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
@@ -4275,14 +4275,18 @@ def _web_search_tool_schema(config: RuntimeConfig, flow: FlowConfig) -> Function
 def _merge_tools_schema(
     base_schema,
     extra_tools: list[FunctionSchema] | None = None,
+    *,
+    google_search: bool = False,
 ) -> ToolsSchema | None:
-    """Return one ToolsSchema with MCP and local assistant tools."""
+    """Return one ToolsSchema with MCP and local assistant tools, plus
+    Gemini's built-in Google Search when [google_search]."""
 
     tools: list[FunctionSchema] = []
     if base_schema and getattr(base_schema, "standard_tools", None):
         tools.extend(base_schema.standard_tools)
     tools.extend(extra_tools or [])
-    return ToolsSchema(standard_tools=tools) if tools else None
+    custom = {AdapterType.GEMINI: [{"google_search": {}}]} if google_search else None
+    return ToolsSchema(standard_tools=tools, custom_tools=custom) if tools or custom else None
 
 
 def _register_local_tool_handlers(llm, tools: list[FunctionSchema]) -> None:
@@ -5230,7 +5234,11 @@ async def _run_bot_session(
             raise RuntimeError(f"MCP tools are enabled but unavailable: {err}") from err
 
     local_tool_schemas = [schema for schema in [_web_search_tool_schema(config, flow)] if schema]
-    tools_schema = _merge_tools_schema(mcp_tools_schema, local_tool_schemas)
+    tools_schema = _merge_tools_schema(
+        mcp_tools_schema,
+        local_tool_schemas,
+        google_search=flow.google_search and runtime_mode == "s2s" and provider_kind == "gemini",
+    )
     flow = _flow_with_mcp_context(flow, bridge)
     context_for_memory = None
     audio_debug = None

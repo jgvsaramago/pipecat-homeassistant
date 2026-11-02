@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 (ByteHomeDash fork)
+
+- Optional Gemini Live native Google Search (`google_search` on a flow, off
+  by default): Gemini searches inside the realtime turn instead of through a
+  second model call. Gemini speech-to-speech flows only. See BYTEHOMEDASH.md.
+- Images published to ghcr.io/jgvsaramago/pipecat-homeassistant.
+
 ## 0.2.2
 
 - Start dashboard audio playback in the original Talk button gesture. Keep the

@@ -546,6 +546,9 @@ class FlowConfig(BaseModel):
     mcp_tool_allowlist: list[str] = Field(default_factory=list)
     memory_enabled: bool = True
     web_search_enabled: bool = False
+    # Gemini Live's own Google Search (grounding): searched inside the
+    # realtime turn, without a second model call. Gemini speech-to-speech only.
+    google_search: bool = False
     video_enabled: bool = False
     steps: list[PipelineStepConfig] = Field(default_factory=default_steps)
     conversation_flow: dict[str, Any] = Field(default_factory=default_conversation_flow)
