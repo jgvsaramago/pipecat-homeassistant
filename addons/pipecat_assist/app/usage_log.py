@@ -180,3 +180,24 @@ def summary(days: int = 30, conversations: int = 50) -> dict[str, Any]:
         ],
         "conversations": convs[: max(0, int(conversations))],
     }
+
+
+_CONTEXT_PATH = USAGE_DIR / "context.json"
+
+
+def save_context(context: dict[str, Any]) -> None:
+    """The context a new model session was opened with (instructions, the
+    integration's prompt, tools), kept for `GET /api/assist/context`."""
+    try:
+        USAGE_DIR.mkdir(parents=True, exist_ok=True)
+        with _LOCK:
+            _CONTEXT_PATH.write_text(json.dumps(context, ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception as err:
+        logger.warning("Usage log: context: {}", err)
+
+
+def last_context() -> dict[str, Any] | None:
+    try:
+        return json.loads(_CONTEXT_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None

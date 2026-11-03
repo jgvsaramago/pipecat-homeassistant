@@ -923,6 +923,15 @@ async def api_get_usage(days: int = 30, conversations: int = 50):
     return await asyncio.to_thread(usage_log.summary, days, conversations)
 
 
+@app.get("/api/assist/context")
+async def api_get_context():
+    """The latest satellite session's initial context (ByteHomeDash fork)."""
+    context = await asyncio.to_thread(usage_log.last_context)
+    if context is None:
+        raise HTTPException(status_code=404, detail="No satellite session yet")
+    return context
+
+
 @app.get("/api/assist/config")
 async def api_get_config(request: Request):
     config = STORE.load()
@@ -5289,6 +5298,7 @@ async def _run_bot_session(
         local_tool_schemas,
         google_search=flow.google_search and runtime_mode == "s2s" and provider_kind == "gemini",
     )
+    base_instructions = flow.instructions
     flow = _flow_with_mcp_context(flow, bridge)
     context_for_memory = None
     audio_debug = None
@@ -5363,6 +5373,30 @@ async def _run_bot_session(
             usage.on_conversation(serializer.protocol.turn_id)
             serializer.protocol.usage = usage
             llm.usage_log = usage
+            # What this session sends the model before anyone speaks, to
+            # check it by eye in ByteHomeDash's panel.
+            system = _effective_instructions(flow)
+            usage_log.save_context(
+                {
+                    "ts": time.time(),
+                    "session": usage.session_id,
+                    "client": client_id,
+                    "flow": flow.id,
+                    "model": realtime_model,
+                    "voice": _gemini_voice(flow, integration),
+                    "language": _runtime_language(flow, integration),
+                    "system_instruction": system,
+                    "parts": [
+                        {"name": "flow_instructions", "text": base_instructions},
+                        {"name": "integration_prompt", "text": (bridge.prompt_context if bridge else "") or ""},
+                        {"name": "addon_hints", "text": system[len(flow.instructions):].strip()},
+                    ],
+                    "tools": [t.to_default_dict() for t in (tools_schema.standard_tools if tools_schema else [])],
+                    "native_tools": [
+                        tool for tools in ((tools_schema.custom_tools or {}).values() if tools_schema else []) for tool in tools
+                    ],
+                }
+            )
 
         logger.info(
             "Starting {} speech-to-speech model {} for flow {}",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.6 (ByteHomeDash fork)
+
+- Each satellite session's initial context (system instruction split into
+  flow instructions, the MCP server's prompt and the add-on's hints; tool
+  schemas; native tools) is saved to `/data/usage/context.json` and served at
+  `GET /api/assist/context`, to check by eye what the model gets.
+
 ## 0.2.5 (ByteHomeDash fork)
 
 - Token usage log for satellite conversations: every Gemini Live turn's
