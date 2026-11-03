@@ -86,6 +86,8 @@ class VaPipecatProtocol:
     assistant_priority: int = 0
     active_tool_calls: set[str] = field(default_factory=set)
     tool_start_pending: bool = False
+    # Token usage and transcripts (app.usage_log.SessionUsage), when logged.
+    usage: Any = None
 
     def hello(self) -> str:
         """Return the server capability handshake."""
@@ -127,6 +129,8 @@ class VaPipecatProtocol:
         message_type = str(message.get("type") or "").strip().lower()
         if message_type in {"start", "wake"}:
             self.turn_id += 1
+            if self.usage is not None:
+                self.usage.on_conversation(self.turn_id)
             self.active = True
             self.stop_requested = False
             self.current_phase = "listening"
@@ -207,6 +211,8 @@ class VaPipecatProtocol:
         clean = text.strip()
         if not clean:
             return None
+        if self.usage is not None:
+            self.usage.on_text(role, clean)
         payload: dict[str, Any] = {
             "type": "transcript",
             "role": role,

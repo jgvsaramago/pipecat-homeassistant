@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.5 (ByteHomeDash fork)
+
+- Token usage log for satellite conversations: every Gemini Live turn's
+  usage (input, cached, output, tool prompt, thinking; by modality) and the
+  last user/assistant transcript go to `/data/usage/YYYY-MM.jsonl` (12 months
+  kept). `GET /api/assist/usage?days=30&conversations=50` returns totals per
+  day and the latest conversations with their turns. See BYTEHOMEDASH.md.
+
 ## 0.2.4 (ByteHomeDash fork)
 
 - Gemini Live: when a long-lived session can't be resumed ("session not found

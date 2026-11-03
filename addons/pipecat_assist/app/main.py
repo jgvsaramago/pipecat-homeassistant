@@ -114,6 +114,8 @@ from app.openai_endpoint import (
 from app.text_agent import run_text_conversation
 from app.va_pipecat import websocket_transport_params
 from app.va_pipecat_protocol import VaPipecatProtocol
+from app import usage_log
+from app.va_pipecat import VaPipecatFrameSerializer
 from app.web_search_tool import run_gemini_web_search, run_openai_web_search, web_search_schema
 
 STORE = ConfigStore()
@@ -913,6 +915,12 @@ async def api_esphome_satellite(websocket: WebSocket):
             await websocket.send_text(payload)
         with suppress(Exception):
             await websocket.close(code=1011)
+
+
+@app.get("/api/assist/usage")
+async def api_get_usage(days: int = 30, conversations: int = 50):
+    """Token usage per day and the latest satellite conversations (ByteHomeDash fork)."""
+    return await asyncio.to_thread(usage_log.summary, days, conversations)
 
 
 @app.get("/api/assist/config")
@@ -4716,6 +4724,12 @@ def _gemini_live_service(
             self._fresh_attempts = 0
             await super()._handle_session_ready(session)
 
+        async def _handle_msg_usage_metadata(self, message):
+            await super()._handle_msg_usage_metadata(message)
+            usage = getattr(self, "usage_log", None)
+            if usage is not None and message.usage_metadata:
+                usage.on_usage(message.usage_metadata)
+
     settings_kwargs: dict[str, Any] = {
         "model": _gemini_model(model),
         "system_instruction": _effective_instructions(flow),
@@ -5338,6 +5352,17 @@ async def _run_bot_session(
                 tools_schema=tools_schema,
             )
         _register_local_tool_handlers(llm, local_tool_schemas)
+        serializer = getattr(getattr(transport, "_params", None), "serializer", None)
+        if provider_kind == "gemini" and isinstance(serializer, VaPipecatFrameSerializer):
+            usage = usage_log.SessionUsage(
+                session_id=str(getattr(runner_args, "session_id", "") or ""),
+                client_id=client_id,
+                flow_id=flow.id,
+                model=realtime_model,
+            )
+            usage.on_conversation(serializer.protocol.turn_id)
+            serializer.protocol.usage = usage
+            llm.usage_log = usage
 
         logger.info(
             "Starting {} speech-to-speech model {} for flow {}",
